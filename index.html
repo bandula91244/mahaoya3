@@ -1,0 +1,379 @@
+/mnt/okcomputer/output/app/
+├── src/
+│   ├── App.tsx                    # Main App with routing
+│   ├── index.css                  # Global styles
+│   ├── App.css                    # App-specific styles
+│   ├── sections/                  # Main website sections
+│   │   ├── Navigation.tsx
+│   │   ├── Hero.tsx
+│   │   ├── About.tsx
+│   │   ├── Attractions.tsx
+│   │   ├── Services.tsx
+│   │   ├── Gallery.tsx
+│   │   ├── Testimonials.tsx
+│   │   ├── Events.tsx
+│   │   ├── Contact.tsx
+│   │   └── Footer.tsx
+│   └── admin/                     # Admin panel
+│       ├── AdminContext.tsx
+│       ├── AdminLogin.tsx
+│       ├── AdminLayout.tsx
+│       ├── Dashboard.tsx
+│       ├── AttractionsManager.tsx
+│       ├── ServicesManager.tsx
+│       ├── EventsManager.tsx
+│       ├── GalleryManager.tsx
+│       ├── MessagesManager.tsx
+│       └── Settings.tsx
+├── public/                        # Static assets
+│   ├── hero-bg.jpg
+│   ├── about-image.jpg
+│   ├── attraction-*.jpg
+│   └── gallery-*.jpg
+└── package.json
+
+import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import './App.css'
+
+// Main Website Components
+import Navigation from './sections/Navigation'
+import Hero from './sections/Hero'
+import About from './sections/About'
+import Attractions from './sections/Attractions'
+import Services from './sections/Services'
+import Gallery from './sections/Gallery'
+import Testimonials from './sections/Testimonials'
+import Contact from './sections/Contact'
+import Events from './sections/Events'
+import Footer from './sections/Footer'
+
+// Admin Components
+import { AdminProvider, useAdmin } from './admin/AdminContext'
+import AdminLogin from './admin/AdminLogin'
+import AdminLayout from './admin/AdminLayout'
+import Dashboard from './admin/Dashboard'
+import AttractionsManager from './admin/AttractionsManager'
+import ServicesManager from './admin/ServicesManager'
+import EventsManager from './admin/EventsManager'
+import GalleryManager from './admin/GalleryManager'
+import MessagesManager from './admin/MessagesManager'
+import Settings from './admin/Settings'
+
+// Main Website Page
+function MainWebsite() {
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false)
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-jungle flex items-center justify-center z-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-golden border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-2xl font-bold text-warm-white font-serif">මහඔය සංචාරක කලාපය</h2>
+          <p className="text-warm-white/70 mt-2">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-warm-white">
+      <Navigation />
+      <main>
+        <Hero />
+        <About />
+        <Attractions />
+        <Services />
+        <Gallery />
+        <Testimonials />
+        <Events />
+        <Contact />
+      </main>
+      <Footer />
+    </div>
+  )
+}
+
+// Protected Admin Route
+function ProtectedAdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAdmin()
+  return isAuthenticated ? <>{children}</> : <Navigate to="/admin/login" replace />
+}
+
+// Admin Routes
+function AdminRoutes() {
+  return (
+    <Routes>
+      <Route path="login" element={<AdminLogin />} />
+      <Route
+        path="*"
+        element={
+          <ProtectedAdminRoute>
+            <AdminLayout />
+          </ProtectedAdminRoute>
+        }
+      >
+        <Route index element={<Dashboard />} />
+        <Route path="attractions" element={<AttractionsManager />} />
+        <Route path="services" element={<ServicesManager />} />
+        <Route path="events" element={<EventsManager />} />
+        <Route path="gallery" element={<GalleryManager />} />
+        <Route path="messages" element={<MessagesManager />} />
+        <Route path="settings" element={<Settings />} />
+      </Route>
+    </Routes>
+  )
+}
+
+// Main App
+function App() {
+  return (
+    <AdminProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/*" element={<MainWebsite />} />
+          <Route path="/admin/*" element={<AdminRoutes />} />
+        </Routes>
+      </BrowserRouter>
+    </AdminProvider>
+  )
+}
+
+export default App
+
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+
+interface AdminUser {
+  id: string
+  name: string
+  email: string
+  role: 'admin' | 'editor'
+}
+
+interface AdminContextType {
+  user: AdminUser | null
+  isAuthenticated: boolean
+  login: (email: string, password: string) => Promise<boolean>
+  logout: () => void
+}
+
+const AdminContext = createContext<AdminContextType | undefined>(undefined)
+
+export function AdminProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<AdminUser | null>(null)
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('adminUser')
+    if (savedUser) {
+      setUser(JSON.parse(savedUser))
+    }
+  }, [])
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    if (email === 'admin@mahaoya.lk' && password === 'admin123') {
+      const adminUser: AdminUser = {
+        id: '1',
+        name: 'ප්‍රධාන පරිපාලක',
+        email: 'admin@mahaoya.lk',
+        role: 'admin',
+      }
+      setUser(adminUser)
+      localStorage.setItem('adminUser', JSON.stringify(adminUser))
+      return true
+    }
+    return false
+  }
+
+  const logout = () => {
+    setUser(null)
+    localStorage.removeItem('adminUser')
+  }
+
+  return (
+    <AdminContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        login,
+        logout,
+      }}
+    >
+      {children}
+    </AdminContext.Provider>
+  )
+}
+
+export function useAdmin() {
+  const context = useContext(AdminContext)
+  if (context === undefined) {
+    throw new Error('useAdmin must be used within an AdminProvider')
+  }
+  return context
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@300;400;500;600;700&family=Noto+Serif+Sinhala:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 60 14% 96%;
+    --foreground: 0 0% 10%;
+    --card: 60 14% 96%;
+    --card-foreground: 0 0% 10%;
+    --popover: 60 14% 96%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 160 76% 17%;
+    --primary-foreground: 60 14% 96%;
+    --secondary: 45 82% 51%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 60 10% 90%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 15 55% 50%;
+    --accent-foreground: 60 14% 96%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 160 30% 80%;
+    --input: 160 30% 85%;
+    --ring: 160 76% 17%;
+    --radius: 0.625rem;
+    
+    --jungle-green: #0a4d3c;
+    --golden-yellow: #e8b923;
+    --burnt-orange: #c75b39;
+    --warm-white: #f5f5f0;
+    --near-black: #1a1a1a;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Noto Sans Sinhala', 'Poppins', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Noto Serif Sinhala', 'Poppins', serif;
+  }
+}
+
+@layer utilities {
+  .text-jungle {
+    color: var(--jungle-green);
+  }
+  
+  .text-golden {
+    color: var(--golden-yellow);
+  }
+  
+  .text-burnt-orange {
+    color: var(--burnt-orange);
+  }
+  
+  .bg-jungle {
+    background-color: var(--jungle-green);
+  }
+  
+  .bg-golden {
+    background-color: var(--golden-yellow);
+  }
+  
+  .bg-burnt-orange {
+    background-color: var(--burnt-orange);
+  }
+  
+  .bg-warm-white {
+    background-color: var(--warm-white);
+  }
+  
+  .glass-effect {
+    backdrop-filter: blur(12px);
+    background: rgba(245, 245, 240, 0.85);
+  }
+  
+  .glass-dark {
+    backdrop-filter: blur(12px);
+    background: rgba(10, 77, 60, 0.9);
+  }
+  
+  .text-shadow {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  }
+  
+  .gradient-overlay {
+    background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--warm-white);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--jungle-green);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #083d2f;
+}
+
+/* Selection color */
+::selection {
+  background: var(--golden-yellow);
+  color: var(--near-black);
+}
+
+{
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.22.0",
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-label": "^2.0.2",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-switch": "^1.0.3",
+    "@radix-ui/react-tabs": "^1.0.4",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "lucide-react": "^0.344.0",
+    "tailwind-merge": "^2.2.1",
+    "tailwindcss-animate": "^1.0.7"
+  }
+}
+
+# 1. Navigate to project
+cd /mnt/okcomputer/output/app
+
+# 2. Install dependencies
+npm install
+
+# 3. Run development server
+npm run dev
+
+# 4. Build for production
+npm run build
+
